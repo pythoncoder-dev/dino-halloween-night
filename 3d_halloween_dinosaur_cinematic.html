@@ -1,0 +1,1159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Halloween Dinosaur - Skeletal Terror</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Three.js and Post-Processing Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/CopyShader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/LuminosityHighPassShader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/EffectComposer.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/RenderPass.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/ShaderPass.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/UnrealBloomPass.js"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Creepster&family=Inter:wght@300;400;600;700&display=swap');
+
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #030108;
+            font-family: 'Inter', sans-serif;
+            user-select: none;
+        }
+
+        .font-creepster {
+            font-family: 'Creepster', cursive;
+        }
+
+        /* Glassmorphism card styling */
+        .glass-panel {
+            background: rgba(13, 10, 25, 0.75);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 107, 0, 0.2);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.7);
+        }
+
+        .glass-button {
+            background: rgba(255, 90, 0, 0.15);
+            border: 1px solid rgba(255, 120, 0, 0.4);
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .glass-button:hover {
+            background: rgba(255, 100, 0, 0.35);
+            border-color: rgba(255, 160, 20, 0.8);
+            box-shadow: 0 0 15px rgba(255, 100, 0, 0.5);
+            transform: translateY(-2px);
+        }
+
+        .glass-button:active {
+            transform: translateY(1px);
+        }
+
+        /* Custom range sliders */
+        input[type=range] {
+            -webkit-appearance: none;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 6px;
+            height: 6px;
+        }
+
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 16px;
+            width: 16px;
+            border-radius: 50%;
+            background: #ff6600;
+            cursor: pointer;
+            box-shadow: 0 0 8px #ff6600;
+        }
+
+        /* Custom scrollbar for settings */
+        ::-webkit-scrollbar {
+            width: 5px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(0,0,0,0.3);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 102, 0, 0.5);
+            border-radius: 3px;
+        }
+
+        /* Toast notification */
+        #toast {
+            transition: opacity 0.3s ease, transform 0.3s ease;
+        }
+    </style>
+</head>
+<body class="text-slate-100 antialiased overflow-hidden select-none">
+
+    <div id="canvas-container" class="absolute inset-0 z-0"></div>
+
+    <!-- UI Overlay Layer -->
+    <div class="relative z-10 flex flex-col justify-between h-screen w-screen p-4 md:p-6 pointer-events-none">
+
+        <!-- Header Bar -->
+        <header class="flex justify-between items-center pointer-events-auto">
+            <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 rounded-lg bg-orange-600/30 border border-orange-500/50 flex items-center justify-center text-orange-400 text-xl shadow-[0_0_15px_rgba(255,102,0,0.5)]">
+                    <i class="fa-solid font-creepster">🎃</i>
+                </div>
+                <div>
+                    <h1 class="text-2xl md:text-3xl font-bold tracking-wider font-creepster text-transparent bg-clip-text bg-gradient-to-r from-orange-400 via-amber-300 to-purple-500 drop-shadow-[0_2px_8px_rgba(255,100,0,0.6)]">
+                        SKELETAL T-REX
+                    </h1>
+                    <p class="text-xs text-orange-200/60 uppercase tracking-widest font-semibold">Halloween 3D Cinematic Experience</p>
+                </div>
+            </div>
+
+            <div class="flex items-center space-x-2 md:space-x-3">
+                <!-- Audio Controls -->
+                <button id="btn-audio" title="Toggle Sound Synth" class="glass-button p-2.5 rounded-xl text-orange-300 text-sm md:text-base flex items-center space-x-2">
+                    <i id="audio-icon" class="fa-solid fa-volume-xmark"></i>
+                    <span id="audio-text" class="hidden md:inline text-xs font-semibold">Unmute Audio</span>
+                </button>
+
+                <!-- Settings Toggle Button (Mobile/Desktop) -->
+                <button id="btn-toggle-menu" title="Toggle Settings" class="glass-button p-2.5 rounded-xl text-orange-300 text-sm md:text-base">
+                    <i class="fa-solid fa-sliders"></i>
+                </button>
+
+                <!-- Screenshot Button -->
+                <button id="btn-snapshot" title="Take Snapshot" class="glass-button p-2.5 rounded-xl text-orange-300 text-sm md:text-base">
+                    <i class="fa-solid fa-camera"></i>
+                </button>
+
+                <!-- Fullscreen Toggle -->
+                <button id="btn-fullscreen" title="Toggle Fullscreen" class="glass-button p-2.5 rounded-xl text-orange-300 text-sm md:text-base">
+                    <i class="fa-solid fa-expand"></i>
+                </button>
+            </div>
+        </header>
+
+        <!-- Center Action HUD (Roar & Motion Controls) -->
+        <div class="flex flex-col items-center justify-end mb-2 space-y-3 pointer-events-auto">
+            <!-- Dramatic Roar Button -->
+            <button id="btn-roar" class="group relative px-8 py-3.5 rounded-2xl bg-gradient-to-r from-orange-600 via-red-600 to-purple-700 text-white font-black text-lg md:text-xl tracking-widest uppercase shadow-[0_0_30px_rgba(255,60,0,0.6)] hover:shadow-[0_0_50px_rgba(255,100,0,0.9)] transform hover:scale-105 active:scale-95 transition duration-200 border border-orange-400/50 flex items-center space-x-3">
+                <i class="fa-solid fa-skull text-amber-300 group-hover:rotate-12 transition duration-300"></i>
+                <span>ROAR TERROR!</span>
+                <i class="fa-solid fa-fire text-amber-300 group-hover:scale-125 transition duration-300"></i>
+            </button>
+
+            <!-- Quick Action Bar -->
+            <div class="glass-panel px-4 py-2 rounded-2xl flex items-center space-x-2 md:space-x-4 text-xs md:text-sm">
+                <button id="btn-anim-walk" class="px-3 py-1.5 rounded-lg bg-orange-500/20 text-orange-300 border border-orange-500/40 hover:bg-orange-500/40 font-semibold transition">
+                    <i class="fa-solid fa-walking mr-1"></i> Walk Cycle
+                </button>
+                <button id="btn-anim-idle" class="px-3 py-1.5 rounded-lg bg-purple-500/20 text-purple-300 border border-purple-500/40 hover:bg-purple-500/40 font-semibold transition">
+                    <i class="fa-solid fa-pause mr-1"></i> Idle Stance
+                </button>
+                <div class="h-4 w-[1px] bg-slate-700"></div>
+                <div class="flex items-center space-x-2 text-slate-300">
+                    <span>Speed:</span>
+                    <input id="slider-speed" type="range" min="0.2" max="2.0" step="0.1" value="1.0" class="w-16 md:w-24">
+                </div>
+            </div>
+        </div>
+
+        <!-- Left / Floating Control Drawer -->
+        <aside id="side-panel" class="absolute top-20 right-4 md:right-6 w-80 max-h-[80vh] overflow-y-auto glass-panel rounded-2xl p-4 pointer-events-auto transition-all duration-300 transform translate-x-0 hidden">
+            <div class="flex items-center justify-between pb-3 border-b border-orange-500/20 mb-4">
+                <h2 class="font-bold text-orange-400 text-sm uppercase tracking-wider flex items-center">
+                    <i class="fa-solid fa-wand-magic-sparkles mr-2"></i> Scene Controls
+                </h2>
+                <button id="btn-close-menu" class="text-slate-400 hover:text-white">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <!-- Preset Camera Shots -->
+            <div class="mb-5">
+                <label class="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-2">Cinematic Cameras</label>
+                <div class="grid grid-cols-2 gap-2 text-xs">
+                    <button id="cam-terror" class="p-2 rounded-lg bg-slate-800/80 hover:bg-orange-600/30 border border-slate-700 hover:border-orange-500/50 text-left transition">
+                        <i class="fa-solid fa-video text-orange-400 mr-1"></i> Low Terror
+                    </button>
+                    <button id="cam-tracking" class="p-2 rounded-lg bg-slate-800/80 hover:bg-orange-600/30 border border-slate-700 hover:border-orange-500/50 text-left transition">
+                        <i class="fa-solid fa-person-walking-arrow-right text-orange-400 mr-1"></i> Side Tracking
+                    </button>
+                    <button id="cam-closeup" class="p-2 rounded-lg bg-slate-800/80 hover:bg-orange-600/30 border border-slate-700 hover:border-orange-500/50 text-left transition">
+                        <i class="fa-solid fa-bullseye text-orange-400 mr-1"></i> Skull Close-Up
+                    </button>
+                    <button id="cam-orbit" class="p-2 rounded-lg bg-slate-800/80 hover:bg-orange-600/30 border border-slate-700 hover:border-orange-500/50 text-left transition">
+                        <i class="fa-solid fa-arrows-spin text-orange-400 mr-1"></i> Free Orbit
+                    </button>
+                </div>
+            </div>
+
+            <!-- Halloween Color Themes -->
+            <div class="mb-5">
+                <label class="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-2">Halloween Mood Theme</label>
+                <div class="grid grid-cols-3 gap-2">
+                    <button id="theme-pumpkin" class="py-2 px-1 rounded-lg border border-orange-500/50 bg-gradient-to-br from-orange-900/60 to-purple-950/80 text-[10px] font-bold text-orange-300 text-center hover:scale-105 transition">
+                        🎃 Pumpkin
+                    </button>
+                    <button id="theme-zombie" class="py-2 px-1 rounded-lg border border-emerald-500/50 bg-gradient-to-br from-emerald-950/60 to-slate-950/80 text-[10px] font-bold text-emerald-300 text-center hover:scale-105 transition">
+                        🧟 Toxic
+                    </button>
+                    <button id="theme-blood" class="py-2 px-1 rounded-lg border border-red-500/50 bg-gradient-to-br from-red-950/60 to-black/80 text-[10px] font-bold text-red-400 text-center hover:scale-105 transition">
+                        🩸 Eclipse
+                    </button>
+                </div>
+            </div>
+
+            <!-- Atmosphere & FX Sliders -->
+            <div class="space-y-4 text-xs">
+                <div>
+                    <div class="flex justify-between text-slate-300 mb-1">
+                        <span>Spooky Fog Density</span>
+                        <span id="val-fog">0.045</span>
+                    </div>
+                    <input id="slider-fog" type="range" min="0.01" max="0.10" step="0.005" value="0.045" class="w-full">
+                </div>
+
+                <div>
+                    <div class="flex justify-between text-slate-300 mb-1">
+                        <span>Pumpkin Flicker Intensity</span>
+                        <span id="val-flicker">1.0</span>
+                    </div>
+                    <input id="slider-flicker" type="range" min="0.0" max="2.0" step="0.1" value="1.0" class="w-full">
+                </div>
+
+                <div>
+                    <div class="flex justify-between text-slate-300 mb-1">
+                        <span>Eye Bloom Glow</span>
+                        <span id="val-bloom">1.2</span>
+                    </div>
+                    <input id="slider-bloom" type="range" min="0.2" max="3.0" step="0.1" value="1.2" class="w-full">
+                </div>
+
+                <div>
+                    <div class="flex justify-between text-slate-300 mb-1">
+                        <span>Master Synth Volume</span>
+                        <span id="val-volume">80%</span>
+                    </div>
+                    <input id="slider-volume" type="range" min="0" max="1" step="0.05" value="0.8" class="w-full">
+                </div>
+            </div>
+        </aside>
+
+        <!-- Notification Toast -->
+        <div id="toast" class="fixed bottom-20 left-1/2 transform -translate-x-1/2 glass-panel px-4 py-2 rounded-xl text-xs font-semibold text-orange-300 border border-orange-500/40 opacity-0 pointer-events-none z-50">
+            Screenshot captured!
+        </div>
+    </div>
+
+    <script>
+        /* ====================================================================
+           3D HALLOWEEN DINOSAUR CINEMATIC - MAIN ENGINE
+           ==================================================================== */
+
+        // System state variables
+        let scene, camera, renderer, composer, controls, bloomPass;
+        let dinoGroup, dinoParts = {}, animState = { mode: 'walk', speed: 1.0, time: 0, roarTime: 0, isRoaring: false };
+        let lights = {}, pumpkins = [], embers, theme = 'pumpkin';
+        let cameraTarget = new THREE.Vector3(0, 2.2, 0);
+        let cameraMode = 'terror'; // terror, tracking, closeup, orbit
+        let cameraShake = 0;
+        let clock = new THREE.Clock();
+
+        // Audio System (Procedural Web Audio API)
+        let audioCtx = null;
+        let isMuted = true;
+        let masterGain = null;
+        let ambientGain = null;
+
+        function initAudio() {
+            if (audioCtx) return;
+            const AudioContext = window.AudioContext || window.webkitAudioContext;
+            audioCtx = new AudioContext();
+
+            masterGain = audioCtx.createGain();
+            masterGain.gain.setValueAtTime(0.8, audioCtx.currentTime);
+            masterGain.connect(audioCtx.destination);
+
+            // Ambient Eerie Wind Loop
+            const bufferSize = audioCtx.sampleRate * 3;
+            const noiseBuffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+            const output = noiseBuffer.getChannelData(0);
+            for (let i = 0; i < bufferSize; i++) {
+                output[i] = Math.random() * 2 - 1;
+            }
+
+            const whiteNoise = audioCtx.createBufferSource();
+            whiteNoise.buffer = noiseBuffer;
+            whiteNoise.loop = true;
+
+            const bandpass = audioCtx.createBiquadFilter();
+            bandpass.type = 'bandpass';
+            bandpass.frequency.setValueAtTime(300, audioCtx.currentTime);
+            bandpass.Q.setValueAtTime(3.0, audioCtx.currentTime);
+
+            ambientGain = audioCtx.createGain();
+            ambientGain.gain.setValueAtTime(0.12, audioCtx.currentTime);
+
+            whiteNoise.connect(bandpass);
+            bandpass.connect(ambientGain);
+            ambientGain.connect(masterGain);
+            whiteNoise.start();
+
+            // Modulate wind pitch slowly
+            setInterval(() => {
+                if (audioCtx && !isMuted) {
+                    bandpass.frequency.exponentialRampToValueAtTime(
+                        150 + Math.random() * 400, 
+                        audioCtx.currentTime + 2.5
+                    );
+                }
+            }, 3000);
+        }
+
+        // Procedural Monster Roar Sound Effect
+        function playRoarSynth() {
+            if (isMuted || !audioCtx) return;
+            const now = audioCtx.currentTime;
+
+            // Low frequency sub monster growl
+            const osc1 = audioCtx.createOscillator();
+            const osc2 = audioCtx.createOscillator();
+            osc1.type = 'sawtooth';
+            osc2.type = 'sawtooth';
+
+            osc1.frequency.setValueAtTime(60, now);
+            osc1.frequency.exponentialRampToValueAtTime(190, now + 0.35);
+            osc1.frequency.exponentialRampToValueAtTime(35, now + 2.2);
+
+            osc2.frequency.setValueAtTime(63, now);
+            osc2.frequency.exponentialRampToValueAtTime(198, now + 0.35);
+            osc2.frequency.exponentialRampToValueAtTime(38, now + 2.2);
+
+            // Distorted screech noise
+            const noiseBuffer = audioCtx.createBuffer(1, audioCtx.sampleRate * 2.2, audioCtx.sampleRate);
+            const data = noiseBuffer.getChannelData(0);
+            for (let i = 0; i < data.length; i++) {
+                data[i] = (Math.random() * 2 - 1);
+            }
+            const noise = audioCtx.createBufferSource();
+            noise.buffer = noiseBuffer;
+
+            const noiseFilter = audioCtx.createBiquadFilter();
+            noiseFilter.type = 'bandpass';
+            noiseFilter.frequency.setValueAtTime(400, now);
+            noiseFilter.frequency.exponentialRampToValueAtTime(1400, now + 0.4);
+            noiseFilter.frequency.exponentialRampToValueAtTime(200, now + 2.2);
+            noiseFilter.Q.setValueAtTime(2.0, now);
+
+            // Gain envelope
+            const roarGain = audioCtx.createGain();
+            roarGain.gain.setValueAtTime(0.01, now);
+            roarGain.gain.linearRampToValueAtTime(0.9, now + 0.2);
+            roarGain.gain.exponentialRampToValueAtTime(0.001, now + 2.3);
+
+            osc1.connect(roarGain);
+            osc2.connect(roarGain);
+            noise.connect(noiseFilter);
+            noiseFilter.connect(roarGain);
+            roarGain.connect(masterGain);
+
+            osc1.start(now);
+            osc2.start(now);
+            noise.start(now);
+
+            osc1.stop(now + 2.3);
+            osc2.stop(now + 2.3);
+            noise.stop(now + 2.3);
+        }
+
+        // Heavy Footstep Impact Thud Sound
+        function playFootstepSynth() {
+            if (isMuted || !audioCtx) return;
+            const now = audioCtx.currentTime;
+
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(120, now);
+            osc.frequency.exponentialRampToValueAtTime(20, now + 0.18);
+
+            gain.gain.setValueAtTime(0.7, now);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
+
+            osc.connect(gain);
+            gain.connect(masterGain);
+
+            osc.start(now);
+            osc.stop(now + 0.2);
+        }
+
+        function initScene() {
+            const container = document.getElementById('canvas-container');
+
+            // Scene & Fog
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x0a0518);
+            scene.fog = new THREE.FogExp2(0x0a0518, 0.045);
+
+            // Camera
+            camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
+            camera.position.set(-2, 1.2, 5.5);
+
+            // WebGL Renderer
+            renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance", preserveDrawingBuffer: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            renderer.toneMapping = THREE.ACESFilmicToneMapping;
+            renderer.toneMappingExposure = 1.1;
+            container.appendChild(renderer.domElement);
+
+            // Orbit Controls (for Manual Orbit Camera Mode)
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            controls.maxPolarAngle = Math.PI / 2 + 0.05; // Don't clip ground
+            controls.minDistance = 1.5;
+            controls.maxDistance = 18;
+            controls.enabled = false; // Enabled only in orbit mode
+
+            // Post-Processing EffectComposer
+            composer = new THREE.EffectComposer(renderer);
+            const renderPass = new THREE.RenderPass(scene, camera);
+            composer.addPass(renderPass);
+
+            bloomPass = new THREE.UnrealBloomPass(
+                new THREE.Vector2(window.innerWidth, window.innerHeight),
+                1.2, // Strength
+                0.5, // Radius
+                0.25  // Threshold
+            );
+            composer.addPass(bloomPass);
+
+            // Setup Lights
+            setupLights();
+
+            // Build Procedural Environment
+            buildEnvironment();
+
+            // Build Procedural Skeletal T-Rex
+            buildTRexSkeleton();
+
+            // Window resize event
+            window.addEventListener('resize', onWindowResize);
+        }
+
+        function setupLights() {
+            // Ambient soft darkness
+            lights.ambient = new THREE.AmbientLight(0x1a0f35, 0.6);
+            scene.add(lights.ambient);
+
+            // Giant Spooky Moon Directional Rim Light
+            lights.moon = new THREE.DirectionalLight(0x70b0ff, 2.2);
+            lights.moon.position.set(-8, 12, -10);
+            lights.moon.castShadow = true;
+            lights.moon.shadow.mapSize.width = 2048;
+            lights.moon.shadow.mapSize.height = 2048;
+            lights.moon.shadow.bias = -0.0005;
+            scene.add(lights.moon);
+
+            // Warm Key Light from Low Ground Pumpkins
+            lights.pumpkinKey = new THREE.PointLight(0xff5500, 3.5, 12);
+            lights.pumpkinKey.position.set(2, 0.8, 2);
+            lights.pumpkinKey.castShadow = true;
+            scene.add(lights.pumpkinKey);
+        }
+
+        function buildEnvironment() {
+            // Damp Dark Ground Plane with Noise Texture Simulation
+            const groundGeo = new THREE.PlaneGeometry(60, 60, 64, 64);
+            const pos = groundGeo.attributes.position;
+            for (let i = 0; i < pos.count; i++) {
+                const x = pos.getX(i);
+                const y = pos.getY(i);
+                // Subtle damp terrain bumpiness
+                const z = Math.sin(x * 0.3) * Math.cos(y * 0.3) * 0.15 + (Math.random() - 0.5) * 0.05;
+                pos.setZ(i, z);
+            }
+            groundGeo.computeVertexNormals();
+
+            const groundMat = new THREE.MeshStandardMaterial({
+                color: 0x0a0812,
+                roughness: 0.85,
+                metalness: 0.2,
+            });
+            const ground = new THREE.Mesh(groundGeo, groundMat);
+            ground.rotation.x = -Math.PI / 2;
+            ground.receiveShadow = true;
+            scene.add(ground);
+
+            // Stylized Moon Mesh in Distance
+            const moonGeo = new THREE.SphereGeometry(3.5, 32, 32);
+            const moonMat = new THREE.MeshBasicMaterial({ color: 0xc8e0ff });
+            const moonMesh = new THREE.Mesh(moonGeo, moonMat);
+            moonMesh.position.set(-16, 20, -25);
+            scene.add(moonMesh);
+
+            // Moon Glow Ring
+            const moonGlowGeo = new THREE.SphereGeometry(4.2, 32, 32);
+            const moonGlowMat = new THREE.MeshBasicMaterial({ color: 0x4488ff, transparent: true, opacity: 0.25 });
+            const moonGlow = new THREE.Mesh(moonGlowGeo, moonGlowMat);
+            moonGlow.position.copy(moonMesh.position);
+            scene.add(moonGlow);
+
+            // Scatter Jack-o'-Lantern Pumpkins
+            const pumpkinPositions = [
+                { x: 1.8, z: 1.5, scale: 0.8 },
+                { x: -2.2, z: 2.0, scale: 1.0 },
+                { x: 2.5, z: -1.2, scale: 0.7 },
+                { x: -1.8, z: -2.5, scale: 0.9 },
+                { x: 3.2, z: 0.5, scale: 0.6 }
+            ];
+
+            pumpkinPositions.forEach((p, idx) => {
+                const pumpkinGroup = createPumpkinMesh(p.scale);
+                pumpkinGroup.position.set(p.x, 0.25 * p.scale, p.z);
+                pumpkinGroup.rotation.y = Math.random() * Math.PI * 2;
+                scene.add(pumpkinGroup);
+
+                // Embedded Flickering PointLight inside main pumpkins
+                if (idx < 3) {
+                    const pLight = new THREE.PointLight(0xff4400, 2.5, 6);
+                    pLight.position.set(p.x, 0.3, p.z);
+                    scene.add(pLight);
+                    pumpkins.push({ group: pumpkinGroup, light: pLight, baseIntensity: 2.5 });
+                }
+            });
+
+            // Scatter Eerie Spooky Tombstones
+            for (let i = 0; i < 12; i++) {
+                const tomb = createTombstoneMesh();
+                const angle = Math.random() * Math.PI * 2;
+                const radius = 5 + Math.random() * 12;
+                tomb.position.set(Math.cos(angle) * radius, 0.5, Math.sin(angle) * radius);
+                tomb.rotation.y = (Math.random() - 0.5) * 0.8;
+                scene.add(tomb);
+            }
+
+            // Scatter Spooky Leafless Trees
+            for (let i = 0; i < 6; i++) {
+                const tree = createDeadTreeMesh();
+                const angle = (i / 6) * Math.PI * 2 + 0.3;
+                const radius = 10 + Math.random() * 6;
+                tree.position.set(Math.cos(angle) * radius, 0, Math.sin(angle) * radius);
+                tree.rotation.y = Math.random() * Math.PI;
+                scene.add(tree);
+            }
+
+            // Floating Spooky Particle Embers
+            const particleCount = 180;
+            const particleGeo = new THREE.BufferGeometry();
+            const particlePos = new Float32Array(particleCount * 3);
+            for (let i = 0; i < particleCount * 3; i += 3) {
+                particlePos[i] = (Math.random() - 0.5) * 20;
+                particlePos[i + 1] = Math.random() * 8;
+                particlePos[i + 2] = (Math.random() - 0.5) * 20;
+            }
+            particleGeo.setAttribute('position', new THREE.BufferAttribute(particlePos, 3));
+            const particleMat = new THREE.PointsMaterial({
+                color: 0xff6600,
+                size: 0.06,
+                transparent: true,
+                opacity: 0.7,
+                blending: THREE.AdditiveBlending
+            });
+            embers = new THREE.Points(particleGeo, particleMat);
+            scene.add(embers);
+        }
+
+        function createPumpkinMesh(scale = 1.0) {
+            const group = new THREE.Group();
+
+            // Ribbed Pumpkin Body
+            const bodyGeo = new THREE.SphereGeometry(0.4 * scale, 16, 12);
+            bodyGeo.scale(1.2, 0.9, 1.2);
+            const bodyMat = new THREE.MeshStandardMaterial({ color: 0xd95200, roughness: 0.6 });
+            const body = new THREE.Mesh(bodyGeo, bodyMat);
+            body.castShadow = true;
+            group.add(body);
+
+            // Stem
+            const stemGeo = new THREE.CylinderGeometry(0.03 * scale, 0.05 * scale, 0.2 * scale, 8);
+            const stemMat = new THREE.MeshStandardMaterial({ color: 0x2d4d1e, roughness: 0.8 });
+            const stem = new THREE.Mesh(stemGeo, stemMat);
+            stem.position.set(0, 0.38 * scale, 0);
+            stem.rotation.z = -0.2;
+            group.add(stem);
+
+            // Glowing Face Carving Cavity (Emissive Triangles for eyes/mouth)
+            const eyeGeo = new THREE.ConeGeometry(0.07 * scale, 0.03 * scale, 3);
+            const glowMat = new THREE.MeshBasicMaterial({ color: 0xffaa00 });
+
+            const leftEye = new THREE.Mesh(eyeGeo, glowMat);
+            leftEye.position.set(-0.12 * scale, 0.08 * scale, 0.42 * scale);
+            leftEye.rotation.x = Math.PI / 2;
+            group.add(leftEye);
+
+            const rightEye = new THREE.Mesh(eyeGeo, glowMat);
+            rightEye.position.set(0.12 * scale, 0.08 * scale, 0.42 * scale);
+            rightEye.rotation.x = Math.PI / 2;
+            group.add(rightEye);
+
+            // Carved Smile
+            const mouthGeo = new THREE.BoxGeometry(0.22 * scale, 0.05 * scale, 0.05 * scale);
+            const mouth = new THREE.Mesh(mouthGeo, glowMat);
+            mouth.position.set(0, -0.06 * scale, 0.42 * scale);
+            group.add(mouth);
+
+            return group;
+        }
+
+        function createTombstoneMesh() {
+            const group = new THREE.Group();
+            const slabGeo = new THREE.BoxGeometry(0.5, 0.9, 0.15);
+            const stoneMat = new THREE.MeshStandardMaterial({ color: 0x3a3a45, roughness: 0.9 });
+            const slab = new THREE.Mesh(slabGeo, stoneMat);
+            slab.castShadow = true;
+            group.add(slab);
+
+            // Arch top
+            const archGeo = new THREE.CylinderGeometry(0.25, 0.25, 0.15, 12);
+            const arch = new THREE.Mesh(archGeo, stoneMat);
+            arch.rotation.x = Math.PI / 2;
+            arch.position.y = 0.45;
+            arch.castShadow = true;
+            group.add(arch);
+
+            return group;
+        }
+
+        function createDeadTreeMesh() {
+            const group = new THREE.Group();
+            const mat = new THREE.MeshStandardMaterial({ color: 0x15101a, roughness: 0.95 });
+
+            // Trunk
+            const trunkGeo = new THREE.CylinderGeometry(0.2, 0.4, 4, 8);
+            const trunk = new THREE.Mesh(trunkGeo, mat);
+            trunk.position.y = 2;
+            trunk.castShadow = true;
+            group.add(trunk);
+
+            // Branches
+            for (let i = 0; i < 4; i++) {
+                const branchGeo = new THREE.CylinderGeometry(0.05, 0.12, 2, 6);
+                const branch = new THREE.Mesh(branchGeo, mat);
+                branch.position.set(0, 2.8 + i * 0.3, 0);
+                branch.rotation.z = (i % 2 === 0 ? 1 : -1) * (0.6 + Math.random() * 0.4);
+                branch.rotation.y = (i * Math.PI) / 2;
+                branch.castShadow = true;
+                group.add(branch);
+            }
+            return group;
+        }
+
+        function buildTRexSkeleton() {
+            dinoGroup = new THREE.Group();
+            scene.add(dinoGroup);
+
+            // Bone Material Setup
+            const boneMat = new THREE.MeshStandardMaterial({
+                color: 0xd2c8b8,
+                roughness: 0.75,
+                metalness: 0.15
+            });
+
+            const eyeGlowMat = new THREE.MeshBasicMaterial({
+                color: 0xff3300
+            });
+
+            // --- 1. PELVIS / HIPS (Parent Anchor) ---
+            const pelvisGroup = new THREE.Group();
+            pelvisGroup.position.set(0, 2.3, 0);
+            dinoGroup.add(pelvisGroup);
+            dinoParts.pelvis = pelvisGroup;
+
+            const pelvisMesh = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.5, 0.9), boneMat);
+            pelvisMesh.castShadow = true;
+            pelvisGroup.add(pelvisMesh);
+
+            // --- 2. SPINE & CHEST RIG ---
+            const spine0 = new THREE.Group();
+            spine0.position.set(0, 0.2, -0.3);
+            pelvisGroup.add(spine0);
+            dinoParts.spine0 = spine0;
+
+            const chestGroup = new THREE.Group();
+            chestGroup.position.set(0, 0.3, -0.4);
+            spine0.add(chestGroup);
+            dinoParts.chest = chestGroup;
+
+            const chestMesh = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.8, 1.1), boneMat);
+            chestMesh.castShadow = true;
+            chestGroup.add(chestMesh);
+
+            // Ribcage Arcs
+            for (let i = -0.4; i <= 0.4; i += 0.2) {
+                const ribArc = new THREE.Mesh(new THREE.TorusGeometry(0.48, 0.04, 6, 12, Math.PI), boneMat);
+                ribArc.rotation.x = Math.PI / 2;
+                ribArc.position.set(0, -0.1, i);
+                chestGroup.add(ribArc);
+            }
+
+            // --- 3. NECK & SKULL ---
+            const neckGroup = new THREE.Group();
+            neckGroup.position.set(0, 0.4, -0.5);
+            chestGroup.add(neckGroup);
+            dinoParts.neck = neckGroup;
+
+            const neckMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.3, 0.8, 8), boneMat);
+            neckMesh.position.set(0, 0.3, -0.2);
+            neckMesh.rotation.x = -Math.PI / 4;
+            neckGroup.add(neckMesh);
+
+            // Cranium / Head
+            const headGroup = new THREE.Group();
+            headGroup.position.set(0, 0.6, -0.5);
+            neckGroup.add(headGroup);
+            dinoParts.head = headGroup;
+
+            // Skull Cranium shape
+            const skullMesh = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.5, 0.9), boneMat);
+            skullMesh.position.set(0, 0.1, -0.35);
+            headGroup.add(skullMesh);
+
+            // T-Rex Snout
+            const snoutMesh = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.4, 0.7), boneMat);
+            snoutMesh.position.set(0, 0.02, -1.0);
+            headGroup.add(snoutMesh);
+
+            // Glowing Eye Sockets inside Skull
+            const leftEye = new THREE.Mesh(new THREE.SphereGeometry(0.12, 16, 16), eyeGlowMat);
+            leftEye.position.set(-0.24, 0.15, -0.5);
+            headGroup.add(leftEye);
+
+            const rightEye = new THREE.Mesh(new THREE.SphereGeometry(0.12, 16, 16), eyeGlowMat);
+            rightEye.position.set(0.24, 0.15, -0.5);
+            headGroup.add(rightEye);
+            dinoParts.eyes = [leftEye, rightEye];
+
+            // Upper Teeth Row
+            for (let z = -0.7; z >= -1.3; z -= 0.12) {
+                const toothL = new THREE.Mesh(new THREE.ConeGeometry(0.03, 0.15, 4), boneMat);
+                toothL.position.set(-0.18, -0.2, z);
+                toothL.rotation.x = Math.PI;
+                headGroup.add(toothL);
+
+                const toothR = new THREE.Mesh(new THREE.ConeGeometry(0.03, 0.15, 4), boneMat);
+                toothR.position.set(0.18, -0.2, z);
+                toothR.rotation.x = Math.PI;
+                headGroup.add(toothR);
+            }
+
+            // Lower Jaw (Hinged at back of skull)
+            const jawGroup = new THREE.Group();
+            jawGroup.position.set(0, -0.18, -0.2);
+            headGroup.add(jawGroup);
+            dinoParts.jaw = jawGroup;
+
+            const jawMesh = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.15, 1.2), boneMat);
+            jawMesh.position.set(0, -0.05, -0.6);
+            jawGroup.add(jawMesh);
+
+            // --- 4. SEGMENTED TAIL ---
+            let lastTailSegment = pelvisGroup;
+            dinoParts.tailSegments = [];
+            for (let i = 0; i < 6; i++) {
+                const tailSeg = new THREE.Group();
+                tailSeg.position.set(0, 0, 0.5 + (i === 0 ? 0 : 0.4));
+                lastTailSegment.add(tailSeg);
+
+                const thickness = 0.35 * (1 - i * 0.14);
+                const segMesh = new THREE.Mesh(new THREE.CylinderGeometry(thickness, thickness * 0.8, 0.5, 8), boneMat);
+                segMesh.rotation.x = Math.PI / 2;
+                segMesh.position.z = 0.25;
+                segMesh.castShadow = true;
+                tailSeg.add(segMesh);
+
+                dinoParts.tailSegments.push(tailSeg);
+                lastTailSegment = tailSeg;
+            }
+
+            // --- 5. SMALL FOREARMS ---
+            ['left', 'right'].forEach(side => {
+                const sign = side === 'left' ? -1 : 1;
+                const armGroup = new THREE.Group();
+                armGroup.position.set(sign * 0.38, -0.1, -0.4);
+                chestGroup.add(armGroup);
+
+                const armBone = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.04, 0.4, 6), boneMat);
+                armBone.position.set(sign * 0.08, -0.15, 0.1);
+                armBone.rotation.z = sign * -0.4;
+                armGroup.add(armBone);
+                dinoParts[side + 'Arm'] = armGroup;
+            });
+
+            // --- 6. HIND LEGS & FEET ---
+            ['left', 'right'].forEach(side => {
+                const sign = side === 'left' ? -1 : 1;
+
+                // Thigh / Hip Joint
+                const legGroup = new THREE.Group();
+                legGroup.position.set(sign * 0.42, -0.1, 0);
+                pelvisGroup.add(legGroup);
+
+                const thighMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.12, 1.1, 8), boneMat);
+                thighMesh.position.set(0, -0.45, -0.1);
+                thighMesh.rotation.x = 0.25;
+                thighMesh.castShadow = true;
+                legGroup.add(thighMesh);
+
+                // Shin / Knee Joint
+                const shinGroup = new THREE.Group();
+                shinGroup.position.set(0, -0.9, -0.1);
+                legGroup.add(shinGroup);
+
+                const shinMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.08, 1.1, 8), boneMat);
+                shinMesh.position.set(0, -0.45, 0.15);
+                shinMesh.rotation.x = -0.35;
+                shinMesh.castShadow = true;
+                shinGroup.add(shinMesh);
+
+                // Foot / Ankle Joint
+                const footGroup = new THREE.Group();
+                footGroup.position.set(0, -0.95, 0.15);
+                shinGroup.add(footGroup);
+
+                const footMesh = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.1, 0.6), boneMat);
+                footMesh.position.set(0, -0.05, -0.15);
+                footMesh.castShadow = true;
+                footGroup.add(footMesh);
+
+                // Claws
+                for (let c = -0.1; c <= 0.1; c += 0.1) {
+                    const claw = new THREE.Mesh(new THREE.ConeGeometry(0.04, 0.2, 4), boneMat);
+                    claw.position.set(c, -0.05, -0.48);
+                    claw.rotation.x = -Math.PI / 2;
+                    footGroup.add(claw);
+                }
+
+                dinoParts[side + 'Leg'] = legGroup;
+                dinoParts[side + 'Shin'] = shinGroup;
+                dinoParts[side + 'Foot'] = footGroup;
+            });
+        }
+
+        function updateDinosaurAnimation(delta) {
+            animState.time += delta * animState.speed;
+            const t = animState.time;
+
+            if (animState.isRoaring) {
+                // --- ROAR ANIMATION STATE ---
+                animState.roarTime += delta;
+                const rProgress = animState.roarTime;
+
+                // Jaw opens wide
+                dinoParts.jaw.rotation.x = THREE.MathUtils.lerp(dinoParts.jaw.rotation.x, 0.85, 0.1);
+                // Head rears back
+                dinoParts.head.rotation.x = THREE.MathUtils.lerp(dinoParts.head.rotation.x, -0.45, 0.1);
+                // Spine arches upwards
+                dinoParts.chest.rotation.x = THREE.MathUtils.lerp(dinoParts.chest.rotation.x, -0.3, 0.1);
+                // Body shakes aggressively
+                dinoParts.pelvis.position.y = 2.3 + Math.sin(rProgress * 45) * 0.06;
+
+                // Screen shake trigger
+                cameraShake = 0.12;
+
+                if (rProgress > 2.2) {
+                    animState.isRoaring = false;
+                    animState.roarTime = 0;
+                }
+            } else if (animState.mode === 'walk') {
+                // --- PROCEDURAL WALK CYCLE ---
+                const walkSpeed = 3.2 * animState.speed;
+                const legSwing = Math.sin(t * walkSpeed);
+
+                // Left & Right Leg Opposition
+                dinoParts.leftLeg.rotation.x = legSwing * 0.45;
+                dinoParts.rightLeg.rotation.x = -legSwing * 0.45;
+
+                // Knee flexing
+                dinoParts.leftShin.rotation.x = Math.max(0, -legSwing) * 0.5;
+                dinoParts.rightShin.rotation.x = Math.max(0, legSwing) * 0.5;
+
+                // Footstep sound trigger on lowest point swing
+                if (Math.abs(legSwing) > 0.98 && !animState.stepTriggered) {
+                    playFootstepSynth();
+                    cameraShake = 0.04;
+                    animState.stepTriggered = true;
+                } else if (Math.abs(legSwing) < 0.5) {
+                    animState.stepTriggered = false;
+                }
+
+                // Hips Bobbing & Spine Sway
+                dinoParts.pelvis.position.y = 2.3 + Math.abs(Math.sin(t * walkSpeed * 2)) * 0.12;
+                dinoParts.chest.rotation.y = Math.sin(t * walkSpeed) * 0.08;
+                dinoParts.head.rotation.y = Math.sin(t * walkSpeed - 0.5) * 0.06;
+
+                // Tail Dynamic Wave Lag
+                dinoParts.tailSegments.forEach((seg, idx) => {
+                    seg.rotation.y = Math.sin(t * walkSpeed - (idx * 0.3)) * 0.12;
+                });
+
+                // Subtle jaw breathing motion
+                dinoParts.jaw.rotation.x = 0.1 + Math.sin(t * 2) * 0.05;
+                dinoParts.head.rotation.x = 0;
+                dinoParts.chest.rotation.x = 0;
+            } else {
+                // --- IDLE STANCE ---
+                const idleSpeed = 1.8;
+                dinoParts.pelvis.position.y = 2.3 + Math.sin(t * idleSpeed) * 0.04;
+                dinoParts.chest.rotation.x = Math.sin(t * idleSpeed) * 0.03;
+                dinoParts.head.rotation.x = Math.sin(t * idleSpeed + 0.5) * 0.04;
+                dinoParts.jaw.rotation.x = 0.08 + Math.sin(t * idleSpeed) * 0.03;
+
+                // Reset legs
+                dinoParts.leftLeg.rotation.x = THREE.MathUtils.lerp(dinoParts.leftLeg.rotation.x, 0, 0.05);
+                dinoParts.rightLeg.rotation.x = THREE.MathUtils.lerp(dinoParts.rightLeg.rotation.x, 0, 0.05);
+                dinoParts.leftShin.rotation.x = THREE.MathUtils.lerp(dinoParts.leftShin.rotation.x, 0, 0.05);
+                dinoParts.rightShin.rotation.x = THREE.MathUtils.lerp(dinoParts.rightShin.rotation.x, 0, 0.05);
+
+                // Idle Tail Sway
+                dinoParts.tailSegments.forEach((seg, idx) => {
+                    seg.rotation.y = Math.sin(t * 1.2 - (idx * 0.4)) * 0.08;
+                });
+            }
+        }
+
+        function updateCameraPresets(elapsedTime) {
+            if (cameraMode === 'orbit') {
+                controls.enabled = true;
+                controls.update();
+                return;
+            }
+
+            controls.enabled = false;
+            let targetPos = new THREE.Vector3();
+            let lookAtTarget = new THREE.Vector3(0, 2.2, 0);
+
+            if (cameraMode === 'terror') {
+                // Cinematic Low-Angle Terror Shot
+                targetPos.set(-2.2, 0.9, 4.2);
+            } else if (cameraMode === 'tracking') {
+                // Side Profile Tracking Camera
+                targetPos.set(5.5, 2.0, 1.2 + Math.sin(elapsedTime * 0.5) * 0.5);
+            } else if (cameraMode === 'closeup') {
+                // Intense Head Close-Up
+                targetPos.set(-0.8, 2.6, 1.8);
+                lookAtTarget.set(0, 2.6, -0.5);
+            }
+
+            // Smooth Interpolation (Lerp) to camera target position
+            camera.position.lerp(targetPos, 0.05);
+
+            // Apply Screen Shake
+            if (cameraShake > 0.001) {
+                camera.position.x += (Math.random() - 0.5) * cameraShake;
+                camera.position.y += (Math.random() - 0.5) * cameraShake;
+                cameraShake *= 0.9;
+            }
+
+            camera.lookAt(lookAtTarget);
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            const delta = clock.getDelta();
+            const elapsedTime = clock.getElapsedTime();
+
+            // 1. Update Dinosaur Skeleton Animations
+            updateDinosaurAnimation(delta);
+
+            // 2. Pumpkin Lights Flickering Simulation
+            const flickerMult = parseFloat(document.getElementById('slider-flicker').value);
+            pumpkins.forEach((p, idx) => {
+                p.light.intensity = (p.baseIntensity + Math.sin(elapsedTime * 12 + idx) * 0.8 + (Math.random() - 0.5) * 0.4) * flickerMult;
+            });
+
+            // 3. Float Embers Upwards
+            if (embers) {
+                const positions = embers.geometry.attributes.position.array;
+                for (let i = 1; i < positions.length; i += 3) {
+                    positions[i] += delta * 0.8;
+                    if (positions[i] > 8) positions[i] = 0;
+                }
+                embers.geometry.attributes.position.needsUpdate = true;
+            }
+
+            // 4. Dynamic Camera Motion
+            updateCameraPresets(elapsedTime);
+
+            // 5. Render Scene through Bloom Post-Processor
+            composer.render();
+        }
+
+        function setupUIHandlers() {
+            // Audio Mute / Unmute
+            const btnAudio = document.getElementById('btn-audio');
+            btnAudio.addEventListener('click', () => {
+                initAudio();
+                if (audioCtx.state === 'suspended') {
+                    audioCtx.resume();
+                }
+
+                isMuted = !isMuted;
+                const icon = document.getElementById('audio-icon');
+                const text = document.getElementById('audio-text');
+
+                if (isMuted) {
+                    icon.className = 'fa-solid fa-volume-xmark';
+                    text.innerText = 'Unmute Audio';
+                    masterGain.gain.setValueAtTime(0, audioCtx.currentTime);
+                } else {
+                    icon.className = 'fa-solid fa-volume-high text-orange-400';
+                    text.innerText = 'Audio Active';
+                    masterGain.gain.setValueAtTime(parseFloat(document.getElementById('slider-volume').value), audioCtx.currentTime);
+                }
+            });
+
+            // Drawer Toggle
+            const sidePanel = document.getElementById('side-panel');
+            document.getElementById('btn-toggle-menu').addEventListener('click', () => {
+                sidePanel.classList.toggle('hidden');
+            });
+            document.getElementById('btn-close-menu').addEventListener('click', () => {
+                sidePanel.classList.add('hidden');
+            });
+
+            // Roar Button Trigger
+            document.getElementById('btn-roar').addEventListener('click', () => {
+                initAudio();
+                animState.isRoaring = true;
+                animState.roarTime = 0;
+                playRoarSynth();
+                showToast('🔥 T-REX ROARS IN TERROR!');
+            });
+
+            // Animation Motion Buttons
+            document.getElementById('btn-anim-walk').addEventListener('click', () => {
+                animState.mode = 'walk';
+            });
+            document.getElementById('btn-anim-idle').addEventListener('click', () => {
+                animState.mode = 'idle';
+            });
+            document.getElementById('slider-speed').addEventListener('input', (e) => {
+                animState.speed = parseFloat(e.target.value);
+            });
+
+            // Camera Preset Switching
+            document.getElementById('cam-terror').addEventListener('click', () => cameraMode = 'terror');
+            document.getElementById('cam-tracking').addEventListener('click', () => cameraMode = 'tracking');
+            document.getElementById('cam-closeup').addEventListener('click', () => cameraMode = 'closeup');
+            document.getElementById('cam-orbit').addEventListener('click', () => cameraMode = 'orbit');
+
+            // Fog & FX Sliders
+            document.getElementById('slider-fog').addEventListener('input', (e) => {
+                const v = parseFloat(e.target.value);
+                scene.fog.density = v;
+                document.getElementById('val-fog').innerText = v.toFixed(3);
+            });
+
+            document.getElementById('slider-flicker').addEventListener('input', (e) => {
+                document.getElementById('val-flicker').innerText = parseFloat(e.target.value).toFixed(1);
+            });
+
+            document.getElementById('slider-bloom').addEventListener('input', (e) => {
+                const v = parseFloat(e.target.value);
+                bloomPass.strength = v;
+                document.getElementById('val-bloom').innerText = v.toFixed(1);
+            });
+
+            document.getElementById('slider-volume').addEventListener('input', (e) => {
+                const v = parseFloat(e.target.value);
+                document.getElementById('val-volume').innerText = Math.round(v * 100) + '%';
+                if (masterGain && !isMuted) {
+                    masterGain.gain.setValueAtTime(v, audioCtx.currentTime);
+                }
+            });
+
+            // Halloween Themes Switching
+            document.getElementById('theme-pumpkin').addEventListener('click', () => applyTheme('pumpkin'));
+            document.getElementById('theme-zombie').addEventListener('click', () => applyTheme('zombie'));
+            document.getElementById('theme-blood').addEventListener('click', () => applyTheme('blood'));
+
+            // Screenshot / Snapshot feature
+            document.getElementById('btn-snapshot').addEventListener('click', () => {
+                composer.render();
+                const dataURL = renderer.domElement.toDataURL('image/png');
+                const link = document.createElement('a');
+                link.download = 'Halloween-3D-Dinosaur.png';
+                link.href = dataURL;
+                link.click();
+                showToast('📷 Screenshot saved to downloads!');
+            });
+
+            // Fullscreen Toggle
+            document.getElementById('btn-fullscreen').addEventListener('click', () => {
+                if (!document.fullscreenElement) {
+                    document.documentElement.requestFullscreen();
+                } else {
+                    if (document.exitFullscreen) document.exitFullscreen();
+                }
+            });
+        }
+
+        function applyTheme(newTheme) {
+            theme = newTheme;
+            if (theme === 'pumpkin') {
+                scene.background.setHex(0x0a0518);
+                scene.fog.color.setHex(0x0a0518);
+                lights.moon.color.setHex(0x70b0ff);
+                if (dinoParts.eyes) dinoParts.eyes.forEach(e => e.material.color.setHex(0xff3300));
+            } else if (theme === 'zombie') {
+                scene.background.setHex(0x03140a);
+                scene.fog.color.setHex(0x03140a);
+                lights.moon.color.setHex(0x66ff88);
+                if (dinoParts.eyes) dinoParts.eyes.forEach(e => e.material.color.setHex(0x00ff44));
+            } else if (theme === 'blood') {
+                scene.background.setHex(0x1a0204);
+                scene.fog.color.setHex(0x1a0204);
+                lights.moon.color.setHex(0xff3344);
+                if (dinoParts.eyes) dinoParts.eyes.forEach(e => e.material.color.setHex(0xff0000));
+            }
+            showToast(`Theme switched to ${newTheme.toUpperCase()}`);
+        }
+
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            toast.innerText = msg;
+            toast.classList.remove('opacity-0', 'pointer-events-none');
+            toast.classList.add('opacity-100');
+            setTimeout(() => {
+                toast.classList.add('opacity-0', 'pointer-events-none');
+            }, 2500);
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            composer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        window.onload = function() {
+            initScene();
+            setupUIHandlers();
+            animate();
+        };
+    </script>
+</body>
+</html>
